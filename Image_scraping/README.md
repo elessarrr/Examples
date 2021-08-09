@@ -1,6 +1,8 @@
 # Examples
 Examples of work done
 
+Image scraping a list of items, in Google Image search. BTW google will ban you for doing this - I did it more to see how it could work, but definitely don't run this large scale (or at all to be frank).
+
 This is one of the earlier projects I did in my journey to self learn, which explains the bulky/wasteful code. Anyway I will upload as is more for myself to remember.
 
 'sku.csv' is just an example of products you might have. You can make the list bigger or smaller and change it out for the name of the products you wish to search for.
