@@ -582,15 +582,14 @@ if data_dict:
                 # Calculate region with largest share
                 largest_region = latest_dist_pd.loc[latest_dist_pd['value'].idxmax()]['area-name']
                 largest_share = latest_dist_pd.loc[latest_dist_pd['value'].idxmax()]['value'] / latest_dist_pd['value'].sum() * 100
-                
+                                
                 st.markdown(f"""
                 - **Largest inventory share**: {largest_region} ({largest_share:.1f}%)
                 - Regional distribution affects pricing, logistics, and refining capacity utilization
                 """)
             else:
-                st.write("No data available for the latest period")
-            
-                            st.markdown('</div>', unsafe_allow_html=True)
+                st.write("No data available for the latest period")            
+                st.markdown('</div>', unsafe_allow_html=True)
             
             with col2:
                 st.markdown('<div class="insight-card">', unsafe_allow_html=True)
