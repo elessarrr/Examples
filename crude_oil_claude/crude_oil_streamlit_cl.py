@@ -1170,18 +1170,18 @@ else:
     st.error("Failed to load data. Please check your connection and try again.")
 
             
-            latest_year_data = filtered_data.filter(pl.col("year") == latest_year)
-            prev_year_data = filtered_data.filter(pl.col("year") == prev_year)
+latest_year_data = filtered_data.filter(pl.col("year") == latest_year)
+prev_year_data = filtered_data.filter(pl.col("year") == prev_year)
             
-            if len(latest_year_data) > 0 and len(prev_year_data) > 0:
-                # Aggregate by month
-                latest_monthly = latest_year_data.group_by(["month", "area-name"]).agg([
-                    pl.col("value").mean().alias("curr_year")
+if len(latest_year_data) > 0 and len(prev_year_data) > 0:
+    # Aggregate by month
+    latest_monthly = latest_year_data.group_by(["month", "area-name"]).agg([
+     pl.col("value").mean().alias("curr_year")
                 ])
                 
-                prev_monthly = prev_year_data.group_by(["month", "area-name"]).agg([
-                    pl.col("value").mean().alias("prev_year")
-                ])
+     prev_monthly = prev_year_data.group_by(["month", "area-name"]).agg([
+     pl.col("value").mean().alias("prev_year")
+     ])
                 
                 # Join the data
                 yoy_comparison = latest_monthly.join(
