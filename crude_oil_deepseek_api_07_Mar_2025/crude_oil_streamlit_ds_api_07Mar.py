@@ -94,29 +94,29 @@ def main():
                  template="plotly_white")
     st.plotly_chart(fig, use_container_width=True)
     
-# Show key metrics
-latest = data["recent_data"].head(1)
-col1, col2, col3 = st.columns(3)
+    # Show key metrics
+    latest = data["recent_data"].head(1)
+    col1, col2, col3 = st.columns(3)
 
-with col1:
-    try:
-        inventory_value = float(latest['inventory'].item())
-        st.metric("Latest Inventory", f"{inventory_value:,.1f} Million BBL")
-    except ValueError as e:
-        st.error(f"Invalid inventory value: {latest['inventory'].item()}")
-        st.metric("Latest Inventory", "N/A")
-
-with col2:
-    try:
-        report_date = latest["period"].dt.strftime("%Y-%m-%d").item()
-        st.metric("Report Date", report_date)
-    except Exception as e:
-        st.error(f"Date formatting error: {str(e)}")
-        st.metric("Report Date", "N/A")
-
-with col3:
-    # From API context: frequency=weekly in load_crude_oil_data()
-    st.metric("Data Frequency", "Weekly")  # Accurate per <source_id data="crude_oil_digital_twin_claude_API_v1.py" />
+    with col1:
+        try:
+            inventory_value = float(latest['inventory'].item())
+            st.metric("Latest Inventory", f"{inventory_value:,.1f} Million BBL")
+        except ValueError as e:
+            st.error(f"Invalid inventory value: {latest['inventory'].item()}")
+            st.metric("Latest Inventory", "N/A")
+    
+    with col2:
+        try:
+            report_date = latest["period"].dt.strftime("%Y-%m-%d").item()
+            st.metric("Report Date", report_date)
+        except Exception as e:
+            st.error(f"Date formatting error: {str(e)}")
+            st.metric("Report Date", "N/A")
+    
+    with col3:
+        # From API context: frequency=weekly in load_crude_oil_data()
+        st.metric("Data Frequency", "Weekly")  # Accurate per <source_id data="crude_oil_digital_twin_claude_API_v1.py" />
 
 if __name__ == "__main__":
     main()
