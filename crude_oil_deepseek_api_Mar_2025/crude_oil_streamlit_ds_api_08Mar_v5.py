@@ -236,76 +236,71 @@ def main():
     with st.expander("View Filtered Data"):
         st.dataframe(filtered_data, use_container_width=True)
 
-    # ========== SIMULATION SECTION ========== 
+    
+    # ================== SIMULATION SECTION ==================
     st.header("🧪 Supply Chain Simulation Engine")
     
-    # Initialize session state for simulation parameters
-    if 'sim_params' not in st.session_state:
-        st.session_state.sim_params = {
-            "sim_duration": 8,
-            "prod_cut": False,
-            "demand_spike": "Normal",
-            "spr_release": False,
-            "transport_cap": 85,
-            "risk_factor": 1.0
-        }
-
-    # Simulation controls
-    with st.expander("⚙️ Configure Simulation Parameters", expanded=True):
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            sim_duration = st.slider("Simulation Weeks", 1, 26, 8)
-            prod_cut = st.checkbox("Production Disruption (PADD 3)")
-        with col2:
-            demand_spike = st.selectbox("Demand Scenario", 
-                                      ["Normal", "+15% Refining", "+30% Exports"])
-            spr_release = st.checkbox("Strategic Petroleum Reserve Release")
-        with col3:
-            transport_cap = st.slider("Transport Capacity (%)", 50, 100, 85)
-            risk_factor = st.slider("Risk Multiplier", 0.5, 2.0, 1.0)
-
-    # Update params in session state
-    st.session_state.sim_params.update({
-        "sim_duration": sim_duration,
-        "prod_cut": prod_cut,
-        "demand_spike": demand_spike,
-        "spr_release": spr_release,
-        "transport_cap": transport_cap,
-        "risk_factor": risk_factor
-    })
-
-    # Simulation execution WITH ERROR HANDLING
+    # Initialize simulation results with fallback
+    sim_results = None
+    
     try:
+        # Parameter collection 
+        with st.expander("⚙️ Configure Simulation", expanded=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                sim_weeks = st.slider("Forecast Horizon (weeks)", 4, 26, 8)
+                disruption = st.checkbox("Gulf Coast Storm Scenario")
+            with col2:
+                demand_change = st.slider("Demand Change (%)", -30, 30, 0)
+                spr_release = st.checkbox("SPR Release (5M bbl/week)")
+
+        # Run simulation
         sim_results = run_simulation(
-            data["analysis_data"],  # Now properly scoped
-            st.session_state.sim_params
+            data["analysis_data"],
+            weeks=sim_weeks,
+            disruption=disruption,
+            demand_change=demand_change/100,
+            spr=spr_release
         )
-    except KeyError as e:
-        st.error(f"Simulation failed - missing data field: {str(e)}")
-        st.stop()
+        
     except Exception as e:
-        st.error(f"Simulation error: {str(e)}")
-        st.stop()   
+        st.error(f"Simulation failed: {str(e)}")
+        st.stop()
 
-
-# Visualization
-fig = go.Figure()
-fig.add_trace(go.Scatter(x=sim_results['period'], y=sim_results['inventory'],
-                        name='Simulated Inventory', line=dict(color='red')))
-fig.add_trace(go.Scatter(x=data["analysis_data"]['period'], 
-                        y=data["analysis_data"]['inventory'],
-                        name='Historical', line=dict(color='blue', dash='dot')))
-
-fig.update_layout(
-    title=f"Supply Chain Simulation: {sim_duration}-Week Outlook",
-    xaxis_title="Date",
-    yaxis_title="Inventory (Million Barrels)",
-    hovermode="x unified",
-    height=500,
-    template="plotly_white"
-)
-
-st.plotly_chart(fig, use_container_width=True)
+    # ================== VISUALIZATION SECTION ================== 
+    st.subheader("Simulation Output")
+    
+    if sim_results is not None:
+        try:
+            fig = go.Figure()
+            
+            # Simulation trace
+            fig.add_trace(go.Scatter(
+                x=sim_results['period'],
+                y=sim_results['inventory'],
+                name='Simulated',
+                line=dict(color='red')
+            ))
+            
+            # Historical trace
+            fig.add_trace(go.Scatter(
+                x=data["analysis_data"]['period'],
+                y=data["analysis_data"]['inventory'],
+                name='Historical',
+                line=dict(color='blue', dash='dot')
+            ))
+            
+            fig.update_layout(
+                title="Inventory Simulation vs Historical",
+                height=500,
+                template="plotly_white"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            
+        except KeyError as e:
+            st.error(f"Missing data column: {str(e)}")
+    else:
+        st.warning("No simulation results to display")
 
 if __name__ == "__main__":
     main()
