@@ -139,14 +139,6 @@ def run_simulation(input_df, params):
         })
     
     return pd.DataFrame(simulations)
-    
-    except KeyError as e:
-        st.error(f"Missing required column: {str(e)}")
-        return pd.DataFrame()
-    except Exception as e:
-        st.error(f"Simulation error: {str(e)}")
-        return pd.DataFrame()
-
 
 # Main application
 def main():
