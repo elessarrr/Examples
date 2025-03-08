@@ -41,7 +41,8 @@ def load_crude_oil_data() -> Optional[Dict[str, pl.DataFrame]]:
     """
     try:
         #api_key = st.secrets["eia_api_key"]
-        url = f"https://api.eia.gov/v2/petroleum/stoc/wstk/data/?frequency=weekly&data[0]=value&facets[product][]=EPC0&start=2016-01-04&end=2025-02-04&sort[0][column]=period&sort[0][direction]=desc&offset=0&length=5000&api_key="nsH8duWHIP4GA3eL1RgSoWh8my1gGOBpfzqyIeKp""
+        api_key = 'nsH8duWHIP4GA3eL1RgSoWh8my1gGOBpfzqyIeKp'
+        url = f"https://api.eia.gov/v2/petroleum/stoc/wstk/data/?frequency=weekly&data[0]=value&facets[product][]=EPC0&start=2016-01-04&end=2025-02-04&sort[0][column]=period&sort[0][direction]=desc&offset=0&length=5000&api_key={api_key}"
         
         with st.spinner("Fetching latest crude oil data from EIA..."):
             response = requests.get(url, timeout=10)
