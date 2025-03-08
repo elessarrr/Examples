@@ -98,9 +98,9 @@ def main():
     latest = data["recent_data"].head(1)
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Latest Inventory", f"{latest['inventory'].values[0]:,.1f} Million BBL")
+        st.metric("Latest Inventory", f"{latest['inventory'].item():,.1f} Million BBL")
     with col2:
-        st.metric("Report Date", latest["period"].dt.strftime("%Y-%m-%d").values[0])
+        st.metric("Report Date", latest["period"].dt.strftime("%Y-%m-%d").item())
     with col3:
         st.metric("Data Frequency", "Weekly")
 
