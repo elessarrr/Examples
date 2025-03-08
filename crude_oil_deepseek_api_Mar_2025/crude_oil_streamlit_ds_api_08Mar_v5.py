@@ -236,62 +236,57 @@ def main():
     with st.expander("View Filtered Data"):
         st.dataframe(filtered_data, use_container_width=True)
 
-# SIMULATION MODULE ===========================================================
-st.header("🧪 Supply Chain Simulation Engine")
-
-# Scenario controls
-with st.expander("⚙️ Configure Simulation Parameters", expanded=True):
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        sim_duration = st.slider("Simulation Weeks", 1, 26, 8)
-        prod_cut = st.checkbox("Production Disruption (PADD 3)")
-    with col2:
-        demand_spike = st.selectbox("Demand Scenario", 
-                                  ["Normal", "+15% Refining", "+30% Exports"])
-        spr_release = st.checkbox("Strategic Petroleum Reserve Release")
-    with col3:
-        transport_cap = st.slider("Transport Capacity (%)", 50, 100, 85)
-        risk_factor = st.slider("Risk Multiplier", 0.5, 2.0, 1.0)
-
-# Simulation logic (modified from original context)
-@st.cache_data
-def run_simulation(_df, params):
-    """Enhanced simulation engine with scenario modeling"""
-    sim_df = _df.copy()
-    base_prod = sim_df['production'].iloc[-1]
-    base_demand = sim_df['refining'].iloc[-1]
+    # ========== SIMULATION SECTION ========== 
+    st.header("🧪 Supply Chain Simulation Engine")
     
-    # Apply scenario modifiers
-    for i in range(params['sim_duration']):
-        if params['prod_cut']:
-            sim_df.loc[i, 'production'] *= 0.65  # Gulf Coast disruption
-            
-        if params['demand_spike'] == "+15% Refining":
-            sim_df.loc[i, 'refining'] *= 1.15
-        elif params['demand_spike'] == "+30% Exports":
-            sim_df.loc[i, 'exports'] *= 1.3
-            
-        sim_df.loc[i, 'transport_cap'] = params['transport_cap']/100
-        sim_df.loc[i, 'inventory'] *= params['risk_factor']
-        
-        # Add SPR logic
-        if params['spr_release']:
-            spr_impact = 5 * 1000  # 5M barrel release/week 
-            sim_df.loc[i, 'inventory'] += spr_impact
-            
-    return sim_df[-params['sim_duration']:]
+    # Initialize session state for simulation parameters
+    if 'sim_params' not in st.session_state:
+        st.session_state.sim_params = {
+            "sim_duration": 8,
+            "prod_cut": False,
+            "demand_spike": "Normal",
+            "spr_release": False,
+            "transport_cap": 85,
+            "risk_factor": 1.0
+        }
 
-# Execute simulation
-sim_params = {
-    "sim_duration": sim_duration,
-    "prod_cut": prod_cut,
-    "demand_spike": demand_spike,
-    "spr_release": spr_release,
-    "transport_cap": transport_cap,
-    "risk_factor": risk_factor
-}
+    # Simulation controls
+    with st.expander("⚙️ Configure Simulation Parameters", expanded=True):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            sim_duration = st.slider("Simulation Weeks", 1, 26, 8)
+            prod_cut = st.checkbox("Production Disruption (PADD 3)")
+        with col2:
+            demand_spike = st.selectbox("Demand Scenario", 
+                                      ["Normal", "+15% Refining", "+30% Exports"])
+            spr_release = st.checkbox("Strategic Petroleum Reserve Release")
+        with col3:
+            transport_cap = st.slider("Transport Capacity (%)", 50, 100, 85)
+            risk_factor = st.slider("Risk Multiplier", 0.5, 2.0, 1.0)
 
-sim_results = run_simulation(data["analysis_data"], sim_params)
+    # Update params in session state
+    st.session_state.sim_params.update({
+        "sim_duration": sim_duration,
+        "prod_cut": prod_cut,
+        "demand_spike": demand_spike,
+        "spr_release": spr_release,
+        "transport_cap": transport_cap,
+        "risk_factor": risk_factor
+    })
+
+    # Simulation execution WITH ERROR HANDLING
+    try:
+        sim_results = run_simulation(
+            data["analysis_data"],  # Now properly scoped
+            st.session_state.sim_params
+        )
+    except KeyError as e:
+        st.error(f"Simulation failed - missing data field: {str(e)}")
+        st.stop()
+    except Exception as e:
+        st.error(f"Simulation error: {str(e)}")
+        st.stop()   
+
 
 # Visualization
 fig = go.Figure()
