@@ -354,9 +354,9 @@ def main():
             start_date = hist_data['period'].iloc[-1].strftime('%Y-%m-%d')
             end_date = sim_data['period'].iloc[-1].strftime('%Y-%m-%d')
             
-            st.markdown(f"""
+            st.html(f"""
             ### Projected Impact (for Scenarios):
-            - Starting Inventory :blue[({start_date})]: {start_inventory:,.0f} Million BBL
+            - Starting Inventory <b>({start_date})</b>: {start_inventory:,.0f} Million BBL
             - Ending Inventory ({end_date}): {end_inventory:,.0f} Million BBL
             - Net Change: {inventory_change:,.0f} Million BBL ({(inventory_change/start_inventory)*100:.1f}%)
             """)
