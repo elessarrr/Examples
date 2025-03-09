@@ -164,7 +164,7 @@ def run_simulation(input_df: pd.DataFrame, params: dict) -> pd.DataFrame:
             
             # Add SPR release effect if enabled
             if params['spr_release']:
-                weekly_change += 5000  # Strategic Petroleum Reserve release rate
+                weekly_change += 3000  # Strategic Petroleum Reserve release rate
             
             # Update inventory
             current_inventory = current_inventory + weekly_change
@@ -398,7 +398,7 @@ def main():
     - Base case assumes a natural weekly decline of 5,000 barrels in inventory levels
     - __Production cuts__ reduce available supply by 150%, simulating severe disruption scenarios
     - __Demand spikes__ double the rate of inventory drawdown, reflecting extreme market conditions
-    - __Strategic Reserve__ releases add 5,000 barrels per week to available supply
+    - __Strategic Reserve__ releases add 3,000 barrels per week to available supply
     """)
 
     # Only show projected impact when regions are selected
