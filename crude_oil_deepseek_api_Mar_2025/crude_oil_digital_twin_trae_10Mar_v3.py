@@ -327,7 +327,7 @@ def main():
         sim_data = sim_results[sim_results['type'] == 'Simulated']
         
         # Add debug information
-        st.write(f"Debug - Simulated data points: {len(sim_data)}")
+        #st.write(f"Debug - Simulated data points: {len(sim_data)}")
         
         # Only add the trace if we have simulated data
         if not sim_data.empty:
