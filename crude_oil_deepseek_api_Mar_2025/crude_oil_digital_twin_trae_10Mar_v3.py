@@ -426,5 +426,12 @@ def main():
     else:
         st.info("Please select at least one PADD region to view impact analysis")
 
+    # Add footer with data attribution
+    st.markdown("""
+    <div style='margin-top:30px; padding-top:20px; border-top:1px solid #e6e6e6; text-align:center; color:#666; font-size:12px;'>
+        Data sources: U.S. Energy Information Administration (EIA) and NewsAPI
+    </div>
+    """, unsafe_allow_html=True)
+
 if __name__ == "__main__":
     main()
