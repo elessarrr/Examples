@@ -294,7 +294,7 @@ def display_risk_gauge(df: pd.DataFrame, scenario_params: Dict) -> None:
 
         with text_col:
             st.markdown(f"""
-            ### Supply Risk Indicator
+            ### _Supply Risk Indicator_
             ###### (based on selected regions and simulation parameters)
             #### Risk Level: {risk_level}
             {risk_message}
