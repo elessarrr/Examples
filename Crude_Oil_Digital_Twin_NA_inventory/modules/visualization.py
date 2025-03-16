@@ -338,9 +338,12 @@ def display_scenario_impact(df: pd.DataFrame) -> None:
                 
                 start_date = hist_data['period'].iloc[-1].strftime('%Y-%m-%d')
                 end_date = sim_data['period'].iloc[-1].strftime('%Y-%m-%d')
+
+                st.markdown("""
+                <h4 style="font-size: 22px; margin-bottom: 5px;">Projected Impact (for Scenarios):</h4>
+                """, unsafe_allow_html=True)
                 
-                st.markdown(f"""
-                ### Projected Impact (for Scenarios):
+                st.markdown(f"""                
                 - Starting Inventory ({start_date}): {start_inventory:,.0f} Million BBL
                 - Ending Inventory ({end_date}): {end_inventory:,.0f} Million BBL
                 - Net Change: {inventory_change:,.0f} Million BBL ({(inventory_change/start_inventory)*100:.1f}%)
@@ -350,7 +353,7 @@ def display_scenario_impact(df: pd.DataFrame) -> None:
                 st.error(f"Error calculating impact: {str(e)}")
 
         st.markdown("""
-        <h4 style="font-size: 18px; margin-bottom: 10px;">Assumptions Made for Scenarios:</h4>
+        <h4 style="font-size: 22px; margin-bottom: 10px;">Assumptions Made for Scenarios:</h4>
         """, unsafe_allow_html=True)        
         st.markdown("""
         - Base case assumes a natural weekly decline of 5,000 barrels in inventory levels
