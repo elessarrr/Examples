@@ -356,12 +356,12 @@ def display_scenario_impact(df: pd.DataFrame) -> None:
         st.markdown("""
         <h4 style="font-size: 22px; margin-bottom: 10px;">Scenario Assumptions:</h4>
         """, unsafe_allow_html=True)        
-        st.markdown("""
-        - Base case assumes a natural weekly decline of 5,000 barrels in inventory levels
+        st.markdown("""        
         - __Production cuts__ reduce available supply by 150%, simulating severe disruption scenarios.
         - __Demand spikes__ double the rate of inventory drawdown, reflecting extreme market conditions.
         - __Strategic Reserve releases__ add 3,000 barrels per week (scaled based on regional proportion) to available supply. 
         """)
+        #- Base case assumes a natural weekly decline of 5,000 barrels in inventory levels
     
     except Exception as e:
         st.error(f"Error displaying scenario impact: {str(e)}")
