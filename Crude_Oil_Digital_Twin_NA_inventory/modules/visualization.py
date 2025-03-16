@@ -318,8 +318,8 @@ def display_risk_gauge(df: pd.DataFrame, scenario_params: Dict) -> None:
 def display_scenario_impact(df: pd.DataFrame) -> None:
     """Display scenario impact analysis"""
     try:
-        st.markdown("### <u>Baseline Simulation Analysis</u>", unsafe_allow_html=True)
-        st.markdown("###### (does not take into account 'daily consumption' simulation parameter)")
+        st.markdown("### <u>Simulation Impact Analysis</u>", unsafe_allow_html=True)
+        st.markdown("###### This analysis uses fixed consumption rates for consistent baseline comparison. The 'Daily Consumption' parameter affects the risk indicator but not the inventory projections.")
         
         #st.markdown("""
         #<div style="display: inline-block;">
@@ -341,7 +341,7 @@ def display_scenario_impact(df: pd.DataFrame) -> None:
                 end_date = sim_data['period'].iloc[-1].strftime('%Y-%m-%d')
                 
                 st.markdown("""
-                <h4 style="font-size: 22px; margin-bottom: 10px;">Projected Impact (for Simulations):</h4>
+                <h4 style="font-size: 22px; margin-bottom: 10px;">Projected Impact:</h4>
                 """, unsafe_allow_html=True) 
                 
                 st.markdown(f"""                
@@ -354,13 +354,13 @@ def display_scenario_impact(df: pd.DataFrame) -> None:
                 st.error(f"Error calculating impact: {str(e)}")
 
         st.markdown("""
-        <h4 style="font-size: 22px; margin-bottom: 10px;">Assumptions Made for Scenarios:</h4>
+        <h4 style="font-size: 22px; margin-bottom: 10px;">Scenario Assumptions:</h4>
         """, unsafe_allow_html=True)        
         st.markdown("""
         - Base case assumes a natural weekly decline of 5,000 barrels in inventory levels
-        - __Production cuts__ reduce available supply by 150%, simulating severe disruption scenarios
-        - __Demand spikes__ double the rate of inventory drawdown, reflecting extreme market conditions
-        - __Strategic Reserve releases__ add 3,000 * scale factor (scaled based on regional proportion) barrels per week to available supply, 
+        - __Production cuts__ reduce available supply by 150%, simulating severe disruption scenarios.
+        - __Demand spikes__ double the rate of inventory drawdown, reflecting extreme market conditions.
+        - __Strategic Reserve releases__ add 3,000 barrels per week (scaled based on regional proportion) to available supply. 
         """)
     
     except Exception as e:
