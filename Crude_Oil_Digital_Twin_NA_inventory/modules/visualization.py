@@ -360,7 +360,7 @@ def display_scenario_impact(df: pd.DataFrame) -> None:
         - Base case assumes a natural weekly decline of 5,000 barrels in inventory levels
         - __Production cuts__ reduce available supply by 150%, simulating severe disruption scenarios
         - __Demand spikes__ double the rate of inventory drawdown, reflecting extreme market conditions
-        - __Strategic Reserve__ releases add 5,000 barrels per week to available supply
+        - __Strategic Reserve releases__ add 3,000 * scale factor (scaled based on regional proportion) barrels per week to available supply, 
         """)
     
     except Exception as e:
