@@ -319,7 +319,7 @@ def display_scenario_impact(df: pd.DataFrame) -> None:
     """Display scenario impact analysis"""
     try:
         st.markdown("### <u>Simulation Impact Analysis</u>", unsafe_allow_html=True)
-        st.markdown("###### This analysis uses fixed consumption rates for consistent baseline comparison. The 'Daily Consumption' parameter affects the risk indicator but not the inventory projections.")
+        st.markdown("###### Note: This analysis uses fixed consumption rates for consistent baseline comparison. The 'Daily Consumption' parameter affects the risk indicator but not the inventory projections.")
         
         #st.markdown("""
         #<div style="display: inline-block;">
