@@ -37,7 +37,7 @@ def display_key_metrics(latest_data: pd.DataFrame, price_data: Optional[pd.DataF
                     matching_price = price_data[price_data['period'] == latest_date]
                     if not matching_price.empty:
                         latest_price = matching_price.iloc[0]['price']
-                        st.metric('Latest WTI Price', f'${float(latest_price):.2f} per BBL')
+                        st.metric('WTI Price on Report Date', f'${float(latest_price):.2f} per BBL')
                     else:
                         st.metric('Latest WTI Price', 'Price not available for report date')
                 else:
