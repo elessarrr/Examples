@@ -299,7 +299,8 @@ def display_risk_gauge(df: pd.DataFrame, scenario_params: Dict) -> None:
             
             st.markdown(f"""            
             ###### (based on selected regions and simulation parameters)
-            #### Risk Level: {risk_level}
+            #### Risk Level: <span style="color: {color}">{risk_level}</span>            
+            """, unsafe_allow_html=True)
             {risk_message}
 
             **Current Status:**
