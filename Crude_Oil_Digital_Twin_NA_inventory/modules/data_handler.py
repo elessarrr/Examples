@@ -20,9 +20,13 @@ def handle_exceptions(func):
 def load_crude_oil_data() -> Optional[Dict]:
     """Load and process EIA crude oil inventory data with dynamic date range"""
     try:
-        st.sidebar.text(f"Last data fetch: {datetime.now().strftime('%H:%M:%S')}")
+        current_time = datetime.now().strftime('%H:%M:%S')
+        st.sidebar.warning(f"🔄 Making API call at: {current_time}")
         api_key = st.secrets["api_key"]
         url = f"https://api.eia.gov/v2/petroleum/stoc/wstk/data/"
+        
+        # Force cache clear for testing
+        st.cache_data.clear()
         
         # First, get a small amount of the most recent data to find the latest date
         initial_params = {
