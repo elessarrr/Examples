@@ -294,7 +294,7 @@ def display_risk_gauge(df: pd.DataFrame, scenario_params: Dict) -> None:
 
         with text_col:
             # Header
-            st.markdown("### Supply Risk Indicator")
+            st.markdown("### <u>Supply Risk Indicator</u>")
             st.markdown("###### (based on selected regions and simulation parameters)")
             
             # Risk Level with color
@@ -332,7 +332,7 @@ def display_scenario_impact(df: pd.DataFrame) -> None:
     """Display scenario impact analysis"""
     try:
         st.markdown("""
-        <h2 style="font-size: 28px; margin-bottom: 16px;">Simulation Impact Analysis</h2>
+        <h2 style="font-size: 28px; margin-bottom: 16px;"><u>Simulation Impact Analysis</u></h2>
         """, unsafe_allow_html=True)      
 
 
