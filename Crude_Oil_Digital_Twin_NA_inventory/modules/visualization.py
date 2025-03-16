@@ -293,11 +293,13 @@ def display_risk_gauge(df: pd.DataFrame, scenario_params: Dict) -> None:
             st.plotly_chart(fig_gauge, use_container_width=True)
 
         with text_col:
-            st.markdown(f"""
-            ### Supply Risk Indicator
-            ###### (based on selected regions and simulation parameters)
-            #### Risk Level: <span style="color: {color}">{risk_level}</span>
-            {risk_message}
+            # Supply Risk Indicator header
+            st.markdown("### Supply Risk Indicator")
+            st.markdown("###### (based on selected regions and simulation parameters)")
+            # Risk Level with color
+            st.markdown(f'#### Risk Level: <span style="color: {color}">{risk_level}</span>', unsafe_allow_html=True)
+            # Risk message (without color)
+            st.markdown(risk_message)
 
             **Current Status:**
             - Days of Supply: {days_of_supply:.1f} days
