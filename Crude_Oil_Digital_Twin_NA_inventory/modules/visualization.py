@@ -319,8 +319,8 @@ def display_scenario_impact(df: pd.DataFrame) -> None:
     """Display scenario impact analysis"""
     try:
         st.markdown("""
-        <h2 style="font-size: 28px; margin-bottom: 16px;">Baseline Simulation Analysis</h2>
-        <p style="font-size: 14px; color: gray; margin-bottom: 20px;">(without consumption adjustments)</p>
+        <h2 style="font-size: 28px; margin-bottom: 1px;">Baseline Simulation Analysis</h2>
+        <p style="font-size: 14px; color: gray; margin-bottom: 10px;">(without consumption adjustments)</p>
         """, unsafe_allow_html=True)          
 
 
