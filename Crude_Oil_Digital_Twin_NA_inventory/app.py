@@ -1,7 +1,7 @@
 import streamlit as st
-from modules.data_handler_v3 import load_crude_oil_data, load_wti_price_data
-from modules.simulation_v3 import run_simulation
-from modules.visualization_v4 import (
+from modules.data_handler import load_crude_oil_data, load_wti_price_data
+from modules.simulation import run_simulation
+from modules.visualization import (
     display_key_metrics,
     plot_inventory_trends,
     display_scenario_controls,
