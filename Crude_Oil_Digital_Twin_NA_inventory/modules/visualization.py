@@ -320,7 +320,7 @@ def display_scenario_impact(df: pd.DataFrame) -> None:
     try:
         st.markdown("""
         <h2 style="font-size: 28px; margin-bottom: 16px;">Baseline Simulation Analysis <span style="font-size: 16px; color: gray; font-weight: normal;">(without consumption adjustments)</span></h2>
-        """, unsafe_allow_html=True)              
+        """, unsafe_allow_html=True)                 
 
 
         if 'Historical' in df['type'].values and 'Simulated' in df['type'].values:
