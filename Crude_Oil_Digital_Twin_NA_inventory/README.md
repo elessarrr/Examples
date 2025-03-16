@@ -1,18 +1,15 @@
 # Crude Oil Digital Twin Application
 
-A sophisticated digital twin application for monitoring, analyzing, and simulating crude oil inventory across different PADD (Petroleum Administration for Defense Districts) regions. This application provides real-time visualization, trend analysis, and scenario-based simulations for better decision-making in crude oil inventory management.
+A digital twin application for monitoring, analyzing, and simulating crude oil inventory across different U.S. PADD (Petroleum Administration for Defense Districts) regions. This application provides real-time visualization, trend analysis, and scenario-based simulations for better decision-making in crude oil inventory management.
 
 ## Features
 
 ### Real-time Monitoring
-- Live inventory tracking across PADD regions
-- Current WTI crude oil price integration
-- Weekly data frequency updates
-- Interactive metrics dashboard
+- Inventory tracking across PADD regions (weekly data frequency update)
+- Current WTI crude oil price integration (weekly data frequency update)
 
 ### Advanced Visualization
 - Multi-region inventory trend analysis
-- Price-inventory correlation plots
 - Interactive PADD region selector with map
 - Risk gauge visualization for inventory levels
 
@@ -64,9 +61,9 @@ streamlit run app_crude_odt_trae_13Mar_v2.py
 
 ### Module Structure
 
-- **data_handler_v3.py**: Data processing and management
-- **simulation_v3.py**: Scenario simulation engine
-- **visualization_v4.py**: Data visualization and UI components
+- **data_handler.py**: Data processing and management
+- **simulation.py**: Scenario simulation engine
+- **visualization.py**: Data visualization and UI components
 
 ### Key Components
 
@@ -97,12 +94,12 @@ The application implements comprehensive error handling through decorators and t
 - numpy
 - python-dotenv
 
-## Best Practices
+## Best Practices employed
 
-1. **Data Refresh**: Update data regularly for accurate analysis
-2. **Scenario Testing**: Test multiple scenarios for comprehensive analysis
-3. **Risk Monitoring**: Regularly check risk indicators
-4. **Parameter Adjustment**: Fine-tune simulation parameters based on market conditions
+1. **Modular Architecture**: Separation of concerns between data, simulation, and visualization
+2. **Error Handling**: Comprehensive exception handling through decorators
+3. **Caching Strategy**: Efficient data loading with appropriate TTL settings
+4. **Responsive Design**: Adapts to different screen sizes and data contexts
 
 ## Support
 
@@ -110,4 +107,19 @@ For issues and feature requests, please create an issue in the repository.
 
 ## License
 
-This project is proprietary and confidential. All rights reserved.
+This project is open source and available under the MIT License.
+
+Copyright (c) 2025 [Your Name]
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED.
