@@ -15,18 +15,18 @@ def handle_exceptions(func):
     return wrapper
 
 # Data loading with proper caching
-@st.cache_data(ttl=5)#change from 86400 to 5, to see if tis working.
+@st.cache_data(ttl=86400)
 @handle_exceptions
 def load_crude_oil_data() -> Optional[Dict]:
     """Load and process EIA crude oil inventory data with dynamic date range"""
     try:
-        current_time = datetime.now().strftime('%H:%M:%S')
-        st.sidebar.warning(f"🔄 Making API call at: {current_time}")
+        #current_time = datetime.now().strftime('%H:%M:%S') - was debugging API call
+        #st.sidebar.warning(f"🔄 Making API call at: {current_time}") - was debugging API call
         api_key = st.secrets["api_key"]
         url = f"https://api.eia.gov/v2/petroleum/stoc/wstk/data/"
         
         # Force cache clear for testing
-        st.cache_data.clear()
+        #st.cache_data.clear() - was debugging API call
         
         # First, get a small amount of the most recent data to find the latest date
         initial_params = {
