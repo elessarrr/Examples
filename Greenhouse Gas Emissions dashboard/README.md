@@ -4,22 +4,22 @@ A production-grade analytics platform that transforms greenhouse gas emissions d
 
 ## Core Capabilities
 
-- **Real-time Analytics Engine**: Processes and visualizes complex emissions data with sub-second response times
-- **Interactive Visualization**: Custom-built dashboard components for intuitive data exploration
-- **Enterprise Integration**: Seamless integration with existing data infrastructure and reporting systems
-- **Compliance Ready**: Built-in support for regulatory reporting requirements
+- **Analytics Engine**: Processes and visualizes greenhouse gas emissions data
+- **Interactive Visualization**: Custom-built dashboard components for emissions breakdown and trends
+- **Data Processing**: Efficient data filtering and aggregation with caching
+- **Compliance Support**: EPA subpart-based emissions tracking and reporting
 
 ## Technical Architecture
 
 ### Frontend
 - **Framework**: Dash (React-based)
-- **Data Visualization**: Plotly.js with custom optimization
-- **State Management**: Redux pattern for predictable state updates
+- **Data Visualization**: Plotly.js for interactive charts
+- **Components**: Modular design with state and subpart breakdown graphs
 
 ### Backend
-- **Data Processing**: Pandas with optimized query patterns
-- **Storage Layer**: Enterprise-ready data persistence
-- **API Layer**: RESTful endpoints with comprehensive documentation
+- **Data Processing**: Pandas with LRU caching and optimized aggregations
+- **Storage Layer**: File-based data storage
+- **State Management**: Dash callbacks with efficient data flow patterns
 
 ### DevOps
 - **Containerization**: Docker with multi-stage builds
@@ -28,9 +28,9 @@ A production-grade analytics platform that transforms greenhouse gas emissions d
 
 ## Performance Optimizations
 
-- Implemented advanced caching strategies reducing query times by 60%
-- Optimized data processing pipeline for sub-second visualization updates
-- Engineered efficient state management reducing memory footprint by 40%
+- Implemented LRU caching for data queries with 128 entry cache size
+- Optimized data processing with efficient Pandas operations
+- Modular component architecture with separate state and subpart graphs
 
 ## Development
 
@@ -66,12 +66,12 @@ Optimized for enterprise-scale emissions data processing:
 - Real-time aggregation and filtering
 - Automated data validation and cleaning
 
-## Business Impact
+## Features
 
-- Reduced reporting cycle time by 75%
-- Enabled data-driven sustainability planning
-- Streamlined regulatory compliance processes
-- Improved stakeholder communication through intuitive visualizations
+- Interactive state emissions time series visualization
+- EPA subpart breakdown analysis with donut charts
+- Multi-state and year range filtering capabilities
+- Cached data processing for improved performance
 
 ## Requirements
 
