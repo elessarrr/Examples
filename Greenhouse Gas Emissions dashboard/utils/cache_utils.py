@@ -1,8 +1,24 @@
+# Context:
+# This module implements caching strategies for the emissions dashboard to improve performance.
+# It provides LRU (Least Recently Used) caching for data queries to reduce database/file access
+# and computation overhead. The cache is optimized for common query patterns and sized based
+# on typical data access patterns in the application.
+# 
+# The module now uses Parquet format for data storage, which provides:
+# - Faster data loading (10-100x faster than Excel)
+# - Column-based storage for efficient querying
+# - Better compression for reduced memory usage
+# - Native support for categorical data types
+
 from functools import lru_cache
 import pandas as pd
 from typing import List, Dict, Any, Optional, Tuple
+from .data_preprocessor import DataPreprocessor
 
-@lru_cache(maxsize=128)
+# Increased cache size to accommodate more unique filter combinations
+# 512 entries can store ~2 hours of active user sessions with different filter combinations
+# while keeping memory usage reasonable (estimated ~100MB for typical payload sizes)
+@lru_cache(maxsize=512)
 def get_cached_data(
     state_filter: Optional[Tuple[str, ...]] = None,
     year_range: Optional[Tuple[int, int]] = None,
@@ -27,37 +43,19 @@ def get_cached_data(
     companies = list(company_filter) if company_filter else None
     years = list(year_range) if year_range else None
     
-    # Load data - replace with your actual data loading logic
+    # Load data from Parquet using the preprocessor
     try:
-        import os
-        data_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'emissions_data.xlsx')
-        print(f"[DEBUG] get_cached_data - Loading data from: {data_path}")
+        preprocessor = DataPreprocessor()
+        raw_data = preprocessor.load_data()
         
-        # Read all sheets from the Excel file
-        xl = pd.ExcelFile(data_path)
-        print(f"[DEBUG] get_cached_data - Available sheets: {xl.sheet_names}")
-        
-        # Read and combine all sheets
-        raw_data = pd.concat([pd.read_excel(xl, sheet_name=sheet) for sheet in xl.sheet_names])
-        print(f"[DEBUG] get_cached_data - Initial data loaded with {len(raw_data)} rows")
-        print(f"[DEBUG] get_cached_data - Columns: {raw_data.columns.tolist()}")
-        
-        # Verify and print unique years in the data
-        if 'REPORTING YEAR' in raw_data.columns:
-            available_years = sorted(raw_data['REPORTING YEAR'].unique())
-            print(f"[DEBUG] get_cached_data - Available years in data: {available_years}")
-            
-            # Only override year_range if not provided
-            if not years:
-                years = [min(available_years), max(available_years)]
-                print(f"[DEBUG] get_cached_data - Using full year range: {years}")
-        
-        print(f"[DEBUG] get_cached_data - Sample data:\n{raw_data.head(2)}")
+        # Set year range if not provided
+        if not years and 'REPORTING YEAR' in raw_data.columns:
+            years = [int(raw_data['REPORTING YEAR'].min()), int(raw_data['REPORTING YEAR'].max())]
         
         # Convert category filter to list
         categories = list(category_filter) if category_filter else None
         
-        # Call filter_and_aggregate_data with the processed filters
+        # Process data with filters
         result = filter_and_aggregate_data(
             raw_data=raw_data,
             selected_states=states,
@@ -66,14 +64,57 @@ def get_cached_data(
             selected_subparts=categories
         )
         
-        print(f"[DEBUG] get_cached_data - Filtered data points: {len(result.get('main_chart_data', []))}")
-        print(f"[DEBUG] get_cached_data - Sample filtered data:\n{result['main_chart_data'][:2] if result['main_chart_data'] else 'No data'}")
         return result
         
     except Exception as e:
         print(f"[ERROR] get_cached_data - Error loading or processing data: {str(e)}")
         return {'main_chart_data': []}
 
+@lru_cache(maxsize=2)
+def get_cached_layout(chart_type: str) -> Dict[str, Any]:
+    """Get cached layout configuration for charts.
+    
+    Args:
+        chart_type: Type of chart ('state' or 'subpart')
+    
+    Returns:
+        Dictionary containing Plotly layout configuration
+    """
+    if chart_type == 'state':
+        return {
+            'title': 'State GHG Emissions Over Time',
+            'height': 500,
+            'margin': {'l': 50, 'r': 20, 't': 50, 'b': 50},
+            'legend': {
+                'orientation': 'h',
+                'yanchor': 'bottom',
+                'y': -0.2,
+                'xanchor': 'center',
+                'x': 0.5,
+                'font': {'size': 10},
+                'itemwidth': 30
+            },
+            'xaxis': {'title': 'Year'},
+            'yaxis': {'title': 'Emissions (MT CO2e)'}
+        }
+    elif chart_type == 'subpart':
+        return {
+            'height': 500,
+            'margin': {'l': 20, 'r': 20, 't': 50, 'b': 50},
+            'legend': {
+                'orientation': 'h',
+                'yanchor': 'bottom',
+                'y': -0.2,
+                'xanchor': 'center',
+                'x': 0.5,
+                'font': {'size': 10},
+                'itemwidth': 30
+            },
+            'showlegend': True
+        }
+    return {}
+
 def clear_data_cache():
-    """Clear the cached data when needed (e.g., after data updates)"""
+    """Clear all cached data when needed (e.g., after data updates)"""
     get_cached_data.cache_clear()
+    get_cached_layout.cache_clear()

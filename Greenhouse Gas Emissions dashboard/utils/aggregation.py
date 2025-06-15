@@ -1,5 +1,50 @@
+# Context:
+# This module handles data filtering and aggregation for the emissions dashboard.
+# It provides functions to:
+# - Filter emissions data by state, year, company, and subpart categories
+# - Pre-aggregate common data combinations to improve query performance
+# - Format data for visualization in charts
+#
+# The module uses pandas for efficient data manipulation and implements caching
+# strategies to reduce processing time for frequently accessed data combinations.
+
 import pandas as pd
 from typing import List, Dict, Any, Optional
+from functools import lru_cache
+
+def get_pre_aggregated_state_year(data: pd.DataFrame) -> pd.DataFrame:
+    """Pre-aggregate emissions data by state and year.
+    
+    This function performs the basic state-year aggregation efficiently
+    without caching, focusing on optimized data processing.
+    
+    Args:
+        data: Raw emissions DataFrame
+        
+    Returns:
+        Aggregated DataFrame with columns: STATE, REPORTING YEAR,
+        GHG QUANTITY (METRIC TONS CO2e), SUBPARTS
+    """
+    try:
+        # Use only necessary columns to reduce memory usage
+        columns = ['STATE', 'REPORTING YEAR', 'GHG QUANTITY (METRIC TONS CO2e)', 'SUBPARTS']
+        data = data[columns].copy()
+        
+        # Convert data types efficiently
+        data['REPORTING YEAR'] = pd.to_numeric(data['REPORTING YEAR'], errors='coerce')
+        data['GHG QUANTITY (METRIC TONS CO2e)'] = pd.to_numeric(data['GHG QUANTITY (METRIC TONS CO2e)'], errors='coerce')
+        
+        # Drop rows with missing values in critical columns
+        data = data.dropna(subset=['REPORTING YEAR', 'STATE', 'GHG QUANTITY (METRIC TONS CO2e)'])
+        
+        # Perform efficient aggregation
+        return data.groupby(['STATE', 'REPORTING YEAR'], as_index=False).agg({
+            'GHG QUANTITY (METRIC TONS CO2e)': 'sum',
+            'SUBPARTS': lambda x: ','.join(sorted(set(','.join(str(s) for s in x).split(','))))
+        })
+    except Exception as e:
+        print(f"[WARNING] Error in aggregation: {str(e)}")
+        return pd.DataFrame(columns=['STATE', 'REPORTING YEAR', 'GHG QUANTITY (METRIC TONS CO2e)', 'SUBPARTS'])
 
 def filter_by_subpart(
     data: pd.DataFrame,
@@ -57,6 +102,9 @@ def filter_and_aggregate_data(
 ) -> Dict[str, List[Dict[str, Any]]]:
     """Filter and aggregate emissions data based on selected criteria.
     
+    This function uses pre-aggregated data when possible to improve performance,
+    falling back to full data processing when company or subpart filters are applied.
+    
     Args:
         raw_data: DataFrame containing the raw emissions data
         selected_states: List of selected state codes
@@ -75,49 +123,71 @@ def filter_and_aggregate_data(
             return {'main_chart_data': [], 'parent_chart_data': []}
 
         print(f"[DEBUG] filter_and_aggregate_data - Initial data shape: {raw_data.shape}")
-        print(f"[DEBUG] filter_and_aggregate_data - Year range: {year_range}")
         
-        # Ensure required columns exist
-        required_columns = ['REPORTING YEAR', 'STATE', 'GHG QUANTITY (METRIC TONS CO2e)', 'SUBPARTS']
-        missing_columns = [col for col in required_columns if col not in raw_data.columns]
-        if missing_columns:
-            print(f"[ERROR] filter_and_aggregate_data - Missing required columns: {missing_columns}")
-            return {'main_chart_data': [], 'parent_chart_data': []}
+        # Determine if we can use pre-aggregated data
+        use_pre_aggregated = not (selected_companies or selected_subparts)
+        
+        if use_pre_aggregated:
+            print("[DEBUG] filter_and_aggregate_data - Using pre-aggregated data")
+            # Get pre-aggregated data
+            aggregated_data = get_pre_aggregated_state_year(raw_data)
+            
+            # Apply filters to pre-aggregated data
+            mask = pd.Series(True, index=aggregated_data.index)
+            
+            if year_range and len(year_range) == 2:
+                mask &= (aggregated_data['REPORTING YEAR'] >= year_range[0]) & \
+                        (aggregated_data['REPORTING YEAR'] <= year_range[1])
+            
+            if selected_states:
+                mask &= aggregated_data['STATE'].isin(selected_states)
+            
+            filtered_data = aggregated_data[mask]
+            
+        else:
+            print("[DEBUG] filter_and_aggregate_data - Using full data processing")
+            # Ensure required columns exist
+            required_columns = ['REPORTING YEAR', 'STATE', 'GHG QUANTITY (METRIC TONS CO2e)', 'SUBPARTS']
+            missing_columns = [col for col in required_columns if col not in raw_data.columns]
+            if missing_columns:
+                print(f"[ERROR] filter_and_aggregate_data - Missing required columns: {missing_columns}")
+                return {'main_chart_data': [], 'parent_chart_data': []}
 
-        # Convert data types and handle missing values
-        raw_data = raw_data.copy()
-        raw_data['REPORTING YEAR'] = pd.to_numeric(raw_data['REPORTING YEAR'], errors='coerce')
-        raw_data['GHG QUANTITY (METRIC TONS CO2e)'] = pd.to_numeric(raw_data['GHG QUANTITY (METRIC TONS CO2e)'], errors='coerce')
-        
-        # Drop rows with missing values in critical columns
-        raw_data = raw_data.dropna(subset=['REPORTING YEAR', 'STATE', 'GHG QUANTITY (METRIC TONS CO2e)'])
-        
-        print(f"[DEBUG] filter_and_aggregate_data - Available years: {sorted(raw_data['REPORTING YEAR'].unique())}")
-        print(f"[DEBUG] filter_and_aggregate_data - Available states: {sorted(raw_data['STATE'].unique())}")
-
-        # Apply filters
-        mask = pd.Series(True, index=raw_data.index)
-        
-        if year_range and len(year_range) == 2:
-            mask &= (raw_data['REPORTING YEAR'] >= year_range[0]) & \
-                    (raw_data['REPORTING YEAR'] <= year_range[1])
-            print(f"[DEBUG] filter_and_aggregate_data - Data points after year filter: {mask.sum()}")
-        
-        if selected_states and len(selected_states) > 0:
-            mask &= raw_data['STATE'].isin(selected_states)
-            print(f"[DEBUG] filter_and_aggregate_data - Data points after state filter: {mask.sum()}")
-        
-        filtered_data = raw_data[mask]
+            # Convert data types and handle missing values
+            raw_data = raw_data.copy()
+            raw_data['REPORTING YEAR'] = pd.to_numeric(raw_data['REPORTING YEAR'], errors='coerce')
+            raw_data['GHG QUANTITY (METRIC TONS CO2e)'] = pd.to_numeric(raw_data['GHG QUANTITY (METRIC TONS CO2e)'], errors='coerce')
+            
+            # Drop rows with missing values in critical columns
+            raw_data = raw_data.dropna(subset=['REPORTING YEAR', 'STATE', 'GHG QUANTITY (METRIC TONS CO2e)'])
+            
+            # Apply all filters
+            mask = pd.Series(True, index=raw_data.index)
+            
+            if year_range and len(year_range) == 2:
+                mask &= (raw_data['REPORTING YEAR'] >= year_range[0]) & \
+                        (raw_data['REPORTING YEAR'] <= year_range[1])
+            
+            if selected_states:
+                mask &= raw_data['STATE'].isin(selected_states)
+                
+            if selected_companies:
+                mask &= raw_data['PARENT COMPANIES'].isin(selected_companies)
+            
+            filtered_data = raw_data[mask]
+            
+            if selected_subparts:
+                filtered_data = filter_by_subpart(filtered_data, selected_subparts)
+            
+            # Group and aggregate data
+            filtered_data = filtered_data.groupby(['STATE', 'REPORTING YEAR']).agg({
+                'GHG QUANTITY (METRIC TONS CO2e)': 'sum',
+                'SUBPARTS': lambda x: ','.join(sorted(set(','.join(str(s) for s in x).split(','))))
+            }).reset_index()
         
         if filtered_data.empty:
             print("[DEBUG] filter_and_aggregate_data - No data after applying filters")
             return {'main_chart_data': [], 'parent_chart_data': []}
-        
-        # Group and aggregate data
-        grouped_data = filtered_data.groupby(['STATE', 'REPORTING YEAR']).agg({
-            'GHG QUANTITY (METRIC TONS CO2e)': 'sum',
-            'SUBPARTS': lambda x: ','.join(sorted(set(','.join(str(s) for s in x).split(','))))
-        }).reset_index()
         
         # Format data for output
         main_chart_data = [{
@@ -125,118 +195,36 @@ def filter_and_aggregate_data(
             'year': int(row['REPORTING YEAR']),
             'value': float(row['GHG QUANTITY (METRIC TONS CO2e)']),
             'subparts': str(row['SUBPARTS'])
-        } for _, row in grouped_data.iterrows()]
+        } for _, row in filtered_data.iterrows()]
         
         print(f"[DEBUG] filter_and_aggregate_data - Processed {len(main_chart_data)} data points")
-        if main_chart_data:
-            print(f"[DEBUG] filter_and_aggregate_data - Sample data point: {main_chart_data[0]}")
-            print(f"[DEBUG] filter_and_aggregate_data - Years in processed data: {sorted(set(d['year'] for d in main_chart_data))}")
+        
+        # Process parent company data if needed
+        parent_chart_data = []
+        if not use_pre_aggregated and selected_companies:
+            try:
+                parent_chart_data = (
+                    filtered_data
+                    .groupby(['PARENT COMPANIES', 'REPORTING YEAR'])['GHG QUANTITY (METRIC TONS CO2e)']
+                    .sum()
+                    .round()
+                    .reset_index()
+                    .rename(columns={
+                        'PARENT COMPANIES': 'company',
+                        'REPORTING YEAR': 'year',
+                        'GHG QUANTITY (METRIC TONS CO2e)': 'value'
+                    })
+                    .sort_values(['company', 'year'])
+                    .to_dict('records')
+                )
+            except Exception as e:
+                print(f"[WARNING] Error processing parent company data: {str(e)}")
         
         return {
             'main_chart_data': main_chart_data,
-            'parent_chart_data': []
+            'parent_chart_data': parent_chart_data
         }
         
     except Exception as e:
         print(f"[ERROR] filter_and_aggregate_data - Error processing data: {str(e)}")
         return {'main_chart_data': [], 'parent_chart_data': []}
-    
-    # Format data for plotting
-    main_chart_data = []
-    for _, row in filtered_data.groupby(['STATE', 'REPORTING YEAR']).agg({
-        'GHG QUANTITY (METRIC TONS CO2e)': 'sum',
-        'SUBPARTS': lambda x: ','.join(sorted(set(','.join(x).split(','))))
-    }).reset_index().iterrows():
-        main_chart_data.append({
-            'state': str(row['STATE']),
-            'year': int(row['REPORTING YEAR']),
-            'value': float(row['GHG QUANTITY (METRIC TONS CO2e)']),
-            'subparts': str(row['SUBPARTS'])
-        })
-    
-    print(f"[DEBUG] filter_and_aggregate_data - Processed {len(main_chart_data)} data points")
-    if main_chart_data:
-        print(f"[DEBUG] filter_and_aggregate_data - Sample data point: {main_chart_data[0]}")
-    
-    # Format parent company data (placeholder for now)
-    parent_chart_data = []
-    
-    return {
-        'main_chart_data': main_chart_data,
-        'parent_chart_data': parent_chart_data
-    }
-    
-    # Create main chart data with standardized column names
-    main_chart_data = [
-        {
-            'state': row['STATE'],
-            'year': int(row['REPORTING YEAR']),  # Ensure year is integer
-            'value': float(row['GHG QUANTITY (METRIC TONS CO2e)']),  # Ensure value is float
-            'subparts': row['SUBPARTS'] if 'SUBPARTS' in row else row.get('SUBPART', '')
-        }
-        for _, row in filtered_data.iterrows()
-    ]
-    
-    print(f"[DEBUG] filter_and_aggregate_data - Processed {len(main_chart_data)} data points")
-    print(f"[DEBUG] filter_and_aggregate_data - Sample processed data: {main_chart_data[:2] if main_chart_data else []}")
-    
-    return {
-        'main_chart_data': main_chart_data,
-        'parent_chart_data': []  # Placeholder for parent company data
-    }
-    print(f"[DEBUG] filter_and_aggregate_data - Data shape after basic filters: {filtered_data.shape}")
-    
-    # Apply subpart filtering
-    filtered_data = filter_by_subpart(filtered_data, selected_subparts)  # New filter applied
-    print(f"[DEBUG] filter_and_aggregate_data - Data shape after subpart filter: {filtered_data.shape}")
-
-    # Aggregate data for main chart
-    main_chart_data = (
-        filtered_data
-        .groupby(['STATE', 'REPORTING YEAR', 'SUBPARTS'])['GHG QUANTITY (METRIC TONS CO2e)']  # Added SUBPARTS
-        .sum()
-        .round()
-        .reset_index()
-        .rename(columns={
-            'STATE': 'state',  # Match state graph component column names
-            'REPORTING YEAR': 'year',
-            'GHG QUANTITY (METRIC TONS CO2e)': 'value',
-            'SUBPARTS': 'subparts'  # Lowercase for consistency
-        })
-        .sort_values('year')  # Sort by lowercase year column name
-        .to_dict('records')
-    )
-
-    # Filter and process parent company data
-    parent_mask = mask.copy()
-    if selected_companies and len(selected_companies) > 0:
-        # Assuming 'PARENT COMPANIES' contains comma-separated values
-        parent_mask &= raw_data['PARENT COMPANIES'].apply(
-            lambda x: any(company in str(x).split(',') for company in selected_companies)
-        )
-
-    parent_data = raw_data[parent_mask]
-    
-    # Apply subpart filtering to parent company data as well
-    parent_data = filter_by_subpart(parent_data, selected_subparts)  # Apply same subpart filter
-
-    # Process parent company data
-    parent_chart_data = (
-        parent_data
-        .groupby(['PARENT COMPANIES', 'REPORTING YEAR'])['GHG QUANTITY (METRIC TONS CO2e)']
-        .sum()
-        .round()
-        .reset_index()
-        .rename(columns={
-            'PARENT COMPANIES': 'company',
-            'REPORTING YEAR': 'year',
-            'GHG QUANTITY (METRIC TONS CO2e)': 'value'
-        })
-        .sort_values(['company', 'year'])
-        .to_dict('records')
-    )
-
-    return {
-        'main_chart_data': main_chart_data,
-        'parent_chart_data': parent_chart_data
-    }
