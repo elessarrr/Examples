@@ -1,10 +1,12 @@
 from dash import html, dcc
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 import plotly.graph_objs as go
 import plotly.express as px
 import pandas as pd
 from typing import Tuple, List, Dict, Optional
-from utils.cache_utils import get_cached_data
+from utils.cache_utils import get_cached_data, get_cached_layout
+from dash.exceptions import PreventUpdate
+import time
 
 def validate_state_data(df: pd.DataFrame) -> Tuple[bool, str]:
     """Validate the dataframe for state emissions plotting.
@@ -26,18 +28,6 @@ def validate_state_data(df: pd.DataFrame) -> Tuple[bool, str]:
         return False, f"Missing required columns: {', '.join(missing_columns)}"
     
     return True, ""
-
-# Context:
-# This file implements the state emissions graph component for the GHG emissions dashboard.
-# It visualizes greenhouse gas emissions data over time for different states, allowing users to:
-# - View emissions trends for multiple states simultaneously
-# - Compare emissions between states using an interactive legend
-# - See all states' data when no specific state is selected
-# - Filter data by year range and categories
-# - Display individual state data on hover for better data exploration
-#
-# The graph is designed to be clean and uncluttered, with state identification provided through
-# the legend rather than callout labels, making it easier to focus on the data trends.
 
 def prepare_state_plot_data(df: pd.DataFrame, selected_states: List[str]) -> pd.DataFrame:
     """Prepare data for state emissions plot.
@@ -70,6 +60,23 @@ def create_state_emissions_graph(app):
     Returns:
         A Dash component representing the emissions graph with interactive controls
     """
+    # Store for tracking last update timestamp
+    last_update_store = dcc.Store(id='last-update-timestamp', data=0)
+    
+    # Create the component structure
+    component = html.Div([
+        dcc.Loading(
+            id="loading-state-graph",
+            type="default",
+            children=[
+                dcc.Graph(
+                    id='state-emissions-graph',
+                    config={'displayModeBar': True}
+                )
+            ]
+        ),
+        last_update_store
+    ])
     
     @app.callback(
         Output('state-emissions-graph', 'figure'),
@@ -77,9 +84,19 @@ def create_state_emissions_graph(app):
             Input('year-range-slider', 'value'),
             Input('state-dropdown', 'value'),
             Input('category-dropdown', 'value')
+        ],
+        [
+            State('last-update-timestamp', 'data')
         ]
     )
-    def update_graph(year_range, selected_states, category):
+    def update_graph(year_range, selected_states, category, last_update):
+        # Get current timestamp
+        current_time = time.time()
+        
+        # Allow initial load or if sufficient time has passed (1 second debounce)
+        if last_update and current_time - last_update < 1.0:
+            raise PreventUpdate
+            
         try:
             # Input validation and defaults
             if not year_range or not isinstance(year_range, list) or len(year_range) != 2:
@@ -91,21 +108,14 @@ def create_state_emissions_graph(app):
             # Ensure year_range values are integers
             year_range = [int(year_range[0]), int(year_range[1])]
             
-            print(f"[DEBUG] update_graph - Processing year range: {year_range}")
-            
-            print(f"[DEBUG] update_graph - Selected states: {selected_states}")
+            # Get cached layout configuration
+            layout = get_cached_layout('state')
             
             # Use cached data retrieval with proper state filtering
             cache_result = get_cached_data(
                 state_filter=None if not selected_states else tuple(selected_states),
                 year_range=tuple(year_range)
             )
-            
-            print(f"[DEBUG] update_graph - Cache result data points: {len(cache_result.get('main_chart_data', []))}")
-            if cache_result.get('main_chart_data'):
-                print(f"[DEBUG] update_graph - Sample data point: {cache_result['main_chart_data'][0]}")
-                print(f"[DEBUG] update_graph - Unique years in data: {sorted(set(d['year'] for d in cache_result['main_chart_data']))}")
-                print(f"[DEBUG] update_graph - Unique states in data: {sorted(set(d['state'] for d in cache_result['main_chart_data']))}")
             
             if not isinstance(cache_result, dict) or 'main_chart_data' not in cache_result:
                 raise ValueError("Invalid data format returned from cache")
@@ -156,40 +166,30 @@ def create_state_emissions_graph(app):
                         except Exception as e:
                             print(f"Error adding trace for state {state}: {str(e)}")
                             continue
-        
-            # Update layout
+            
+            # Update layout using cached configuration
             try:
-                fig.update_layout(
-                    title='State GHG Emissions Over Time',
-                    xaxis=dict(
-                        title='Year',
-                        gridcolor='lightgray',
-                        showgrid=True,
-                        tickmode='linear',
-                        range=[year_range[0], year_range[1]]
-                    ),
-                    yaxis=dict(
-                        title='GHG Emissions (Metric Tons CO2e)',
-                        gridcolor='lightgray',
-                        showgrid=True
-                    ),
-                    plot_bgcolor='white',
-                    paper_bgcolor='white',
-                    hovermode='closest',  # Show data only for the closest point/line
-                    showlegend=True,
-                    # Configure legend to be the primary state identifier
-                    # Position it prominently but not overlapping with the graph
-                    legend=dict(
-                        yanchor='top',
-                        y=0.99,
-                        xanchor='right',
-                        x=0.99,
-                        bgcolor='rgba(255, 255, 255, 0.8)',
-                        font=dict(size=12)
-                    ),
-                    margin=dict(l=60, r=50, t=50, b=50)
-                )
+                # Get base layout from cache
+                layout.update({
+                    'xaxis': {
+                        **layout.get('xaxis', {}),
+                        'gridcolor': 'lightgray',
+                        'showgrid': True,
+                        'tickmode': 'linear',
+                        'range': [year_range[0], year_range[1]]
+                    },
+                    'yaxis': {
+                        **layout.get('yaxis', {}),
+                        'gridcolor': 'lightgray',
+                        'showgrid': True
+                    },
+                    'plot_bgcolor': 'white',
+                    'paper_bgcolor': 'white',
+                    'hovermode': 'closest',
+                    'showlegend': False  # Hide the legend to reduce clutter
+                })
                 
+                fig.update_layout(layout)
                 return fig
                 
             except Exception as e:
@@ -203,10 +203,9 @@ def create_state_emissions_graph(app):
                     y=0.5,
                     showarrow=False
                 )
-                
+        
         except Exception as e:
             print(f"Error in update_graph: {str(e)}")
-            # Return a basic figure with error message
             return go.Figure().add_annotation(
                 text='Error updating graph. Please check your selections.',
                 xref='paper',
@@ -216,18 +215,4 @@ def create_state_emissions_graph(app):
                 showarrow=False
             )
     
-    # Return the graph component
-    return html.Div(
-        className='emissions-chart-container',
-        children=[
-            dcc.Graph(
-                id='state-emissions-graph',
-                config={
-                    'displayModeBar': True,
-                    'scrollZoom': True,
-                    'responsive': True
-                },
-                style={'height': '500px'}
-            )
-        ]
-    )
+    return component
