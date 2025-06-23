@@ -67,9 +67,9 @@ class DataPreprocessor:
             print(f"[ERROR] Failed to convert Excel to Parquet: {str(e)}")
             raise
     
-    def load_data(self) -> pd.DataFrame:
+    def load_data(self, nrows: int = None) -> pd.DataFrame:
         """Load data from Parquet file, converting from Excel if necessary.
-        
+        Optionally limit to nrows for debugging.
         Returns:
             DataFrame containing the emissions data
         """
@@ -77,11 +77,11 @@ class DataPreprocessor:
             # Convert to Parquet if it doesn't exist
             if not self.parquet_file.exists():
                 self.convert_to_parquet()
-            
             # Load from Parquet with optimized settings
             df = pd.read_parquet(self.parquet_file)
+            if nrows is not None:
+                df = df.head(nrows)
             return df
-            
         except Exception as e:
             print(f"[ERROR] Failed to load data: {str(e)}")
             raise

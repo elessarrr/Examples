@@ -1,6 +1,9 @@
 # Use Python 3.9 slim image as base
 FROM python:3.9-slim
 
+# Create a non-root user
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
 # Set working directory
 WORKDIR /app
 
@@ -15,28 +18,33 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Install Gunicorn and Gevent
+RUN pip install gunicorn==20.1.0 gevent==22.10.2
+
 # Copy application code
 COPY . .
+
+# Set ownership to non-root user
+RUN chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
 
 # Expose port
 EXPOSE 8050
 
 # Set environment variables
-ENV PYTHONUNBUFFERED=1
-ENV DASH_DEBUG_MODE=False
+ENV PYTHONUNBUFFERED=1 \
+    DASH_DEBUG_MODE=False \
+    PYTHONMALLOC=malloc \
+    MALLOC_TRIM_THRESHOLD_=100000
 
-# Set memory and CPU constraints
-ENV PYTHONMALLOC=malloc
-ENV MALLOC_TRIM_THRESHOLD_=100000
-
-# Configure Gunicorn for production
-RUN pip install gunicorn gevent
-
-# Set resource limits
-ENV WORKERS=4
-ENV THREADS=2
-ENV MAX_REQUESTS=1000
-ENV TIMEOUT=30
-
-# Run the application with Gunicorn
-CMD ["gunicorn", "-w", "$WORKERS", "--threads", "$THREADS", "--max-requests", "$MAX_REQUESTS", "--timeout", "$TIMEOUT", "--worker-class", "gevent", "--bind", "0.0.0.0:8050", "app:server"]
+# Run the application with Gunicorn using explicit values
+CMD ["gunicorn", \
+     "--workers", "4", \
+     "--threads", "2", \
+     "--max-requests", "1000", \
+     "--timeout", "30", \
+     "--worker-class", "gevent", \
+     "--bind", "0.0.0.0:8050", \
+     "app:server"]

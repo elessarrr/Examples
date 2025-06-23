@@ -48,6 +48,36 @@ python app.py
 
 Access the development server at http://localhost:8050
 
+### Feature Flag Configuration
+
+Control enhanced features using environment variables:
+
+```bash
+# Enable enhanced subpart breakdown
+export ENHANCED_SUBPART_BREAKDOWN=true
+
+# Enable debug mode for development
+export DEBUG_MODE=true
+
+# Enable performance monitoring
+export PERFORMANCE_MONITORING=true
+
+# Run with enhanced features
+python app.py
+```
+
+**Available Feature Flags:**
+- `ENHANCED_SUBPART_BREAKDOWN` - Enable enhanced subpart breakdown with accurate percentages
+- `DEBUG_MODE` - Enable debug logging and additional validation
+- `SHOW_VALIDATION_WARNINGS` - Show data validation warnings in UI (default: true)
+- `PERFORMANCE_MONITORING` - Enable performance monitoring and logging
+- `STRICT_DATA_VALIDATION` - Enable strict data validation checks (default: true)
+
+**Quick Start with Enhanced Features:**
+```bash
+ENHANCED_SUBPART_BREAKDOWN=true python app.py
+```
+
 ## Project Structure
 
 ```
@@ -68,10 +98,54 @@ Optimized for enterprise-scale emissions data processing:
 
 ## Features
 
+### Core Analytics
 - Interactive state emissions time series visualization
 - EPA subpart breakdown analysis with donut charts
 - Multi-state and year range filtering capabilities
 - Cached data processing for improved performance
+
+### Enhanced Subpart Breakdown (Feature Flag Controlled)
+- **Individual subpart representation** - Each color represents a single EPA subpart (no collections)
+- **Accurate percentages** - Percentages sum to exactly 100% with proper rounding
+- **Comma-separated subpart expansion** - Properly handles and expands comma-separated subpart values
+- **Enhanced data validation** - Comprehensive data quality checks and error handling
+- **Improved tooltips** - Detailed hover information with subpart definitions
+- **Performance monitoring** - Optional performance tracking and validation warnings
+
+### Feature Flag System
+- **Safe deployment** - Gradual rollout capabilities with instant rollback
+- **Environment-based configuration** - Control features via environment variables
+- **Debug mode** - Enhanced logging and validation for development
+- **Backward compatibility** - Seamless fallback to legacy components
+
+## Deployment
+
+### Production Deployment
+
+```bash
+# Build Docker image
+docker build -t ghg-dashboard .
+
+# Run with enhanced features enabled
+docker run -p 8050:8050 \
+  -e ENHANCED_SUBPART_BREAKDOWN=true \
+  -e STRICT_DATA_VALIDATION=true \
+  ghg-dashboard
+```
+
+### Gradual Rollout Strategy
+
+1. **Stage 1**: Deploy with feature flags disabled (safe fallback)
+2. **Stage 2**: Enable for 10% of users with monitoring
+3. **Stage 3**: Gradually increase to 100% based on performance metrics
+4. **Rollback**: Instantly disable via environment variables if issues arise
+
+### Monitoring
+
+- Enable `PERFORMANCE_MONITORING=true` for production metrics
+- Monitor logs for validation warnings and errors
+- Track percentage accuracy and data integrity
+- Use `DEBUG_MODE=true` only in development environments
 
 ## Requirements
 

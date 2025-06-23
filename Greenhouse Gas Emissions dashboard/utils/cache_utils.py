@@ -1,8 +1,9 @@
 # Context:
-# This module implements caching strategies for the emissions dashboard to improve performance.
+# Context: This module implements caching strategies for the emissions dashboard to improve performance.
 # It provides LRU (Least Recently Used) caching for data queries to reduce database/file access
 # and computation overhead. The cache is optimized for common query patterns and sized based
 # on typical data access patterns in the application.
+# Recent addition: Standardized chart title margins for consistent heading alignment across graphs.
 # 
 # The module now uses Parquet format for data storage, which provides:
 # - Faster data loading (10-100x faster than Excel)
@@ -14,11 +15,24 @@ from functools import lru_cache
 import pandas as pd
 from typing import List, Dict, Any, Optional, Tuple
 from .data_preprocessor import DataPreprocessor
+from .feature_flags import feature_flags
+from .performance_monitor import monitor_performance
+from .smart_cache import get_smart_cache, smart_cache_decorator
 
-# Increased cache size to accommodate more unique filter combinations
-# 512 entries can store ~2 hours of active user sessions with different filter combinations
-# while keeping memory usage reasonable (estimated ~100MB for typical payload sizes)
+def _generate_cache_key(*args, **kwargs) -> str:
+    """Generate cache key for data retrieval."""
+    state_filter = kwargs.get('state_filter') or args[0] if args else None
+    year_range = kwargs.get('year_range') or args[1] if len(args) > 1 else None
+    company_filter = kwargs.get('company_filter') or args[2] if len(args) > 2 else None
+    category_filter = kwargs.get('category_filter') or args[3] if len(args) > 3 else None
+    
+    return f"data:{state_filter}:{year_range}:{company_filter}:{category_filter}"
+
+# Dual caching strategy: Smart cache (Phase 2) with LRU fallback (Phase 1)
+# Smart cache provides TTL and memory management, LRU provides simple fallback
 @lru_cache(maxsize=512)
+@smart_cache_decorator(key_func=_generate_cache_key, ttl_seconds=1800)  # 30 minutes TTL
+@monitor_performance("cached_data_retrieval", "cache_utils")
 def get_cached_data(
     state_filter: Optional[Tuple[str, ...]] = None,
     year_range: Optional[Tuple[int, int]] = None,
@@ -37,16 +51,27 @@ def get_cached_data(
         Dictionary containing cached aggregated data
     """
     from .aggregation import filter_and_aggregate_data
+    from .aggregation_v2 import get_subpart_breakdown_data
     
     # Convert tuple filters back to lists for the underlying function
     states = list(state_filter) if state_filter else None
     companies = list(company_filter) if company_filter else None
     years = list(year_range) if year_range else None
     
-    # Load data from Parquet using the preprocessor
+    # Load data from Parquet using the preprocessor or global data manager
     try:
-        preprocessor = DataPreprocessor()
-        raw_data = preprocessor.load_data()
+        # Performance optimization: Use global data manager when available
+        if feature_flags.is_enabled('use_global_data_manager'):
+            from .data_manager import get_global_data
+            raw_data = get_global_data()
+            if raw_data is None:
+                print("[WARNING] Global data not available in cache_utils, falling back to DataPreprocessor")
+                preprocessor = DataPreprocessor()
+                raw_data = preprocessor.load_data()
+        else:
+            # Fallback to DataPreprocessor
+            preprocessor = DataPreprocessor()
+            raw_data = preprocessor.load_data()
         
         # Set year range if not provided
         if not years and 'REPORTING YEAR' in raw_data.columns:
@@ -55,7 +80,7 @@ def get_cached_data(
         # Convert category filter to list
         categories = list(category_filter) if category_filter else None
         
-        # Process data with filters
+        # Use original aggregation for state graph compatibility
         result = filter_and_aggregate_data(
             raw_data=raw_data,
             selected_states=states,
@@ -71,6 +96,7 @@ def get_cached_data(
         return {'main_chart_data': []}
 
 @lru_cache(maxsize=2)
+@smart_cache_decorator(ttl_seconds=3600)  # 1 hour TTL for layouts
 def get_cached_layout(chart_type: str) -> Dict[str, Any]:
     """Get cached layout configuration for charts.
     
@@ -82,9 +108,16 @@ def get_cached_layout(chart_type: str) -> Dict[str, Any]:
     """
     if chart_type == 'state':
         return {
-            'title': 'State GHG Emissions Over Time',
+            'title': {
+                'text': 'State GHG Emissions Over Time',
+                'font': {'size': 18},
+                'x': 0.03,
+                'xanchor': 'left',
+                'y': 0.95,  # Standardized y position for consistent alignment
+                'yanchor': 'top'
+            },
             'height': 500,
-            'margin': {'l': 50, 'r': 20, 't': 50, 'b': 50},
+            'margin': {'l': 50, 'r': 20, 't': 80, 'b': 50},  # Consistent margins for title alignment
             'legend': {
                 'orientation': 'h',
                 'yanchor': 'bottom',
@@ -100,7 +133,14 @@ def get_cached_layout(chart_type: str) -> Dict[str, Any]:
     elif chart_type == 'subpart':
         return {
             'height': 500,
-            'margin': {'l': 20, 'r': 20, 't': 50, 'b': 50},
+            'margin': {'l': 20, 'r': 20, 't': 80, 'b': 50},  # Increased top margin to accommodate title
+            'title': {
+                'font': {'size': 18},
+                'x': 0.03,
+                'xanchor': 'left',
+                'y': 0.95,  # Standardized y position for consistent alignment
+                'yanchor': 'top'
+            },
             'legend': {
                 'orientation': 'h',
                 'yanchor': 'bottom',
@@ -116,5 +156,31 @@ def get_cached_layout(chart_type: str) -> Dict[str, Any]:
 
 def clear_data_cache():
     """Clear all cached data when needed (e.g., after data updates)"""
+    # Clear LRU caches
     get_cached_data.cache_clear()
     get_cached_layout.cache_clear()
+    
+    # Clear smart cache if enabled
+    if feature_flags.is_enabled('use_smart_cache'):
+        smart_cache = get_smart_cache()
+        smart_cache.clear()
+
+def get_cache_stats() -> Dict[str, Any]:
+    """Get comprehensive cache statistics.
+    
+    Returns:
+        Dictionary containing cache performance metrics
+    """
+    stats = {
+        'lru_cache': {
+            'get_cached_data': get_cached_data.cache_info()._asdict(),
+            'get_cached_layout': get_cached_layout.cache_info()._asdict()
+        }
+    }
+    
+    # Add smart cache stats if enabled
+    if feature_flags.is_enabled('use_smart_cache'):
+        smart_cache = get_smart_cache()
+        stats['smart_cache'] = smart_cache.get_stats()
+    
+    return stats
