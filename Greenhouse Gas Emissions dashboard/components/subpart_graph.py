@@ -1,10 +1,19 @@
-from dash import html, dcc
+from dash import html, dcc, callback_context
+# Context: This component creates and manages the subpart breakdown chart (pie chart) that displays
+# emissions data categorized by EPA GHGRP subparts. It includes interactive tooltips, dynamic filtering,
+# and a collapsible mapping table for subpart definitions.
+# Recent addition: Standardized title margins for consistent heading alignment with state graph.
+# Simplified to remove unused category filter parameter.
+
+import dash_core_components as dcc
+import dash_html_components as html
 from dash.dependencies import Input, Output, State
 import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
 from typing import List, Optional, Dict, Any, Union, Tuple
 from utils.cache_utils import get_cached_data, get_cached_layout
+from utils.subpart_mappings import subpart_mappings
 from dash.exceptions import PreventUpdate
 import time
 
@@ -42,6 +51,38 @@ def format_pie_labels(values: List[float], labels: List[str], threshold: float =
     return formatted_labels, hover_template
 
 def create_subpart_breakdown(app):
+    @app.callback(
+        Output('tooltip-state-store', 'data'),
+        [Input('subpart-info-icon', 'n_clicks'),
+         Input('close-tooltip', 'n_clicks'),
+         Input('tooltip-overlay', 'n_clicks')],
+        [State('tooltip-state-store', 'data')],
+        prevent_initial_call=True
+    )
+    def update_tooltip_state(info_clicks, close_clicks, overlay_clicks, current_state):
+        from dash import no_update
+        ctx = callback_context
+        if not ctx.triggered:
+            return no_update
+
+        trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+        
+        if trigger_id == 'subpart-info-icon':
+            return 'visible'
+        elif trigger_id in ['close-tooltip', 'tooltip-overlay']:
+            return 'hidden'
+        
+        return no_update
+
+    @app.callback(
+        Output('subpart-tooltip', 'className'),
+        Output('tooltip-overlay', 'className'),
+        Input('tooltip-state-store', 'data')
+    )
+    def update_tooltip_visibility(state):
+        if state == 'visible':
+            return 'tooltip-content visible', 'tooltip-overlay visible'
+        return 'tooltip-content', 'tooltip-overlay'
     """
     Creates a Plotly donut chart showing emissions breakdown by subpart.
     
@@ -58,14 +99,13 @@ def create_subpart_breakdown(app):
         Output('subpart-breakdown-graph', 'figure'),
         [
             Input('year-range-slider', 'value'),
-            Input('state-dropdown', 'value'),
-            Input('category-dropdown', 'value')
+            Input('state-dropdown', 'value')
         ],
         [
             State('subpart-last-update-timestamp', 'data')
         ]
     )
-    def update_subpart_graph(year_range, selected_states, selected_category, last_update):
+    def update_subpart_graph(year_range, selected_states, last_update):
         # Get current timestamp
         current_time = time.time()
         
@@ -160,9 +200,35 @@ def create_subpart_breakdown(app):
             
             group_data['emissions'] = group_data['emissions'].round(0)
             
-            # Calculate percentages
+            # Calculate percentages with accurate adjustment to ensure they sum to 100%
             total_emissions = group_data['emissions'].sum()
-            group_data['percentage'] = (group_data['emissions'] / total_emissions * 100).round(1)
+            raw_percentages = (group_data['emissions'] / total_emissions * 100)
+            
+            # Apply accurate percentage calculation (same logic as enhanced version)
+            rounded_percentages = raw_percentages.round(1)
+            total_rounded = rounded_percentages.sum()
+            difference = 100.0 - total_rounded
+            
+            # Adjust percentages if they don't sum to exactly 100%
+            if abs(difference) > 0.001:  # Only adjust if meaningful difference
+                # Calculate remainders for largest remainder method
+                remainders = raw_percentages - rounded_percentages.round(0)
+                
+                # Determine how many 0.1% adjustments we need
+                adjustments_needed = int(abs(difference) * 10)
+                
+                if difference > 0:  # Need to add percentage
+                    # Add 0.1% to the items with largest remainders
+                    indices_to_adjust = remainders.nlargest(adjustments_needed).index
+                    for idx in indices_to_adjust:
+                        rounded_percentages.loc[idx] += 0.1
+                else:  # Need to subtract percentage
+                    # Subtract 0.1% from the items with smallest remainders
+                    indices_to_adjust = remainders.nsmallest(adjustments_needed).index
+                    for idx in indices_to_adjust:
+                        rounded_percentages.loc[idx] -= 0.1
+            
+            group_data['percentage'] = rounded_percentages.round(1)
             
             # Sort by emissions
             group_data = group_data.sort_values('emissions', ascending=False)
@@ -170,36 +236,39 @@ def create_subpart_breakdown(app):
             # Create donut chart with hover-only labels for cleaner visualization
             if selected_category:
                 labels = [row.entity for _, row in group_data.iterrows()]
-                values = group_data['emissions'].tolist()
+                values = group_data['percentage'].tolist()  # Use calculated percentages for accurate visual representation
+                emissions_data = group_data['emissions'].tolist()  # Keep emissions for hover display
                 
                 fig = go.Figure(data=[go.Pie(
                     labels=labels,  # Keep original labels for hover text
                     text=[''] * len(labels),  # Remove text labels for cleaner look
                     textposition='none',  # Disable text display
-                    values=values,
+                    values=values,  # Use percentages for accurate pie slice sizes
                     hole=0.5,
                     hovertemplate=('<b>%{label}</b><br>' +
-                                  'Emissions: %{value:,.0f} MT CO2e<br>' +
-                                  'Percentage: %{percent:.1f}%<br>' +
+                                  'Emissions: %{customdata:,.0f} MT CO2e<br>' +
+                                  'Percentage: %{value:.1f}%<br>' +
                                   '<extra></extra>'),
-                    customdata=[''] * len(labels)  # Empty customdata for states view
+                    customdata=emissions_data  # Pass emissions data for hover display
                 )])
             else:
                 labels = [f'{label_prefix}{row.entity}' for _, row in group_data.iterrows()]
-                values = group_data['emissions'].tolist()
+                values = group_data['percentage'].tolist()  # Use calculated percentages for accurate visual representation
+                emissions_data = group_data['emissions'].tolist()  # Keep emissions for hover display
+                state_counts = group_data['stateCount'].tolist()  # Keep state counts for hover display
                 
                 fig = go.Figure(data=[go.Pie(
                     labels=labels,  # Keep original labels for hover text
                     text=[''] * len(labels),  # Remove text labels for cleaner look
                     textposition='none',  # Disable text display
-                    values=values,
+                    values=values,  # Use percentages for accurate pie slice sizes
                     hole=0.5,
                     hovertemplate=('<b>%{label}</b><br>' +
-                                  'Emissions: %{value:,.0f} MT CO2e<br>' +
-                                  'Percentage: %{percent:.1f}%<br>' +
-                                  'States: %{customdata}<br>' +
+                                  'Emissions: %{customdata[0]:,.0f} MT CO2e<br>' +
+                                  'Percentage: %{value:.1f}%<br>' +
+                                  'States: %{customdata[1]}<br>' +
                                   '<extra></extra>'),
-                    customdata=[f'{count}' for count in group_data['stateCount']]
+                    customdata=list(zip(emissions_data, state_counts))  # Pass both emissions and state counts
                 )])
 
             # Get cached layout configuration
@@ -207,7 +276,10 @@ def create_subpart_breakdown(app):
             
             # Update layout with chart-specific settings
             layout.update({
-                'title': title,
+                'title': {
+                    **layout.get('title', {}),
+                    'text': title
+                },
                 'showlegend': False,  # Hide legend for cleaner look
                 'plot_bgcolor': 'white',
                 'paper_bgcolor': 'white'
@@ -227,8 +299,120 @@ def create_subpart_breakdown(app):
                 showarrow=False
             )
     
+    def create_tooltip_content():
+        # Format subpart definitions for tooltip with a header and organized content
+        return html.Div([
+            html.Div([
+                html.H3("EPA GHGRP Subpart Definitions", style={
+                    "margin": "0 0 10px 0",
+                    "color": "#2c3e50",
+                    "fontSize": "24px"
+                }),
+                html.I(
+                    className="fas fa-times",
+                    id="close-tooltip",
+                    n_clicks=0,
+                    style={
+                        "position": "absolute",
+                        "top": "15px",
+                        "right": "15px",
+                        "cursor": "pointer",
+                        "fontSize": "24px",
+                        "color": "#666",
+                        "transition": "color 0.2s ease",
+                        "zIndex": "10000"
+                    }
+                )
+            ], style={
+                "position": "relative", 
+                "marginBottom": "20px",
+                "borderBottom": "2px solid #eee",
+                "paddingBottom": "15px"
+            }),
+            html.Div([
+                html.Div([
+                    html.Strong(
+                        f"Subpart {code}",
+                        style={
+                            "color": "#2980b9",
+                            "fontSize": "16px",
+                            "display": "block",
+                            "marginBottom": "5px"
+                        }
+                    ),
+                    html.P(
+                        desc,
+                        style={
+                            "margin": "0",
+                            "color": "#333",
+                            "lineHeight": "1.6"
+                        }
+                    )
+                ], style={
+                    "padding": "15px",
+                    "marginBottom": "15px",
+                    "borderRadius": "8px",
+                    "backgroundColor": "#f8f9fa",
+                    "border": "1px solid #e9ecef"
+                })
+                for code, desc in sorted(subpart_mappings.items())
+            ], style={
+                "maxHeight": "calc(80vh - 100px)",
+                "overflowY": "auto",
+                "paddingRight": "15px"
+            })
+        ])
+    
+    # Context
+    # This file defines the subpart breakdown graph and related UI components for the GHG emissions dashboard.
+    # It includes the donut chart, tooltip logic, and a concise, collapsible table mapping subpart codes to their definitions.
+    # The subpart mapping table is now wrapped in a dropdown (html.Details) for minimal UI clutter.
+    # All code is minimal and focused on this specific UI feature.
+    # Create the tooltip content
+    tooltip_content = create_tooltip_content()
+    
+    # --- Concise subpart mapping table (collapsible) ---
+    # This table provides a quick reference for subpart codes and their definitions, hidden by default.
+    mapping_table = html.Details([
+        html.Summary("Show subpart code definitions"),
+        html.Table([
+            html.Thead([
+                html.Tr([
+                    html.Th("Subpart Code"),
+                    html.Th("Definition")
+                ])
+            ]),
+            html.Tbody([
+                html.Tr([
+                    html.Td(code),
+                    html.Td(desc)
+                ]) for code, desc in subpart_mappings.items()
+            ])
+        ], style={"marginTop": "10px", "width": "100%", "maxWidth": "600px", "fontSize": "14px", "borderCollapse": "collapse"})
+    ], style={"marginTop": "30px"})
+    
     # Return the component structure
     return html.Div([
+        # Info icon positioned absolutely in top-right corner
+        html.I(
+            className="fas fa-info-circle info-icon",
+            id="subpart-info-icon",
+            n_clicks=0,
+            style={"position": "absolute", "top": "10px", "right": "10px", "zIndex": "2"}
+        ),
+        # Overlay for closing tooltip
+        html.Div(
+            id="tooltip-overlay",
+            className="tooltip-overlay",
+            n_clicks=0
+        ),
+        # Tooltip content
+        html.Div(
+            tooltip_content,
+            id="subpart-tooltip",
+            className="tooltip-content"
+        ),
+        # Graph component
         dcc.Loading(
             id="loading-subpart-graph",
             type="default",
@@ -239,5 +423,7 @@ def create_subpart_breakdown(app):
                 )
             ]
         ),
+        # --- Collapsible subpart mapping table below the graph ---
+        mapping_table,
         last_update_store
-    ])
+    ], style={"position": "relative"})

@@ -1,4 +1,5 @@
-from dash import html, dcc
+import dash_core_components as dcc
+import dash_html_components as html
 from dash.dependencies import Input, Output, State
 import plotly.graph_objs as go
 import plotly.express as px
@@ -76,20 +77,30 @@ def create_state_emissions_graph(app):
             ]
         ),
         last_update_store
-    ])
+    ], style={"position": "relative"})
     
     @app.callback(
         Output('state-emissions-graph', 'figure'),
         [
             Input('year-range-slider', 'value'),
-            Input('state-dropdown', 'value'),
-            Input('category-dropdown', 'value')
+            Input('state-dropdown', 'value')
         ],
         [
             State('last-update-timestamp', 'data')
         ]
     )
-    def update_graph(year_range, selected_states, category, last_update):
+    def update_graph(year_range, selected_states, last_update):
+        """
+        Update state emissions graph based on selected filters.
+        
+        Args:
+            year_range: List containing [start_year, end_year]
+            selected_states: List of selected state codes
+            last_update: Timestamp for debouncing updates
+            
+        Returns:
+            Plotly figure object
+        """
         # Get current timestamp
         current_time = time.time()
         
